@@ -1,5 +1,6 @@
 import { FastifyRequest, FastifyReply } from 'fastify';
 import * as hasuraService from '../services/hasuraService';
+import * as firebaseService from '../services/firebaseService';
 
 // Create User
 
@@ -80,5 +81,43 @@ export async function deleteUser(request: FastifyRequest, reply: FastifyReply) {
   } catch (error: any) {
     console.error('❌ Error deleting user:', error.message);
     return reply.status(500).send({ error: 'Failed to delete user' });
+  }
+}
+
+export async function loginUser(request: FastifyRequest, reply: FastifyReply) {
+  try {
+    const { email, password } = request.body as { email?: string; password?: string };
+
+    if (!email || !password) {
+      return reply.status(400).send({ error: 'Invalid request: Missing email or password' });
+    }
+
+    // Authenticate with Firebase
+    const tokenData = await firebaseService.getFirebaseToken(email, password);
+
+    // Calculate token expiration timestamp
+    const expiresAt = Date.now() + parseInt(tokenData.expiresIn) * 1000;
+
+    // Set HTTP-only, Secure Cookies for Tokens
+    reply.setCookie('idToken', tokenData.idToken, {
+      httpOnly: true,
+      secure: true,
+      sameSite: 'strict',
+      path: '/',
+      maxAge: parseInt(tokenData.expiresIn), // Expiry in seconds
+    });
+
+    reply.setCookie('refreshToken', tokenData.refreshToken, {
+      httpOnly: true,
+      secure: true,
+      sameSite: 'strict',
+      path: '/',
+      maxAge: 60 * 60 * 24 * 30, // 30 days
+    });
+
+    return reply.send({ message: 'Login successful', expiresAt });
+  } catch (error: any) {
+    console.error('❌ Error logging in:', error.message);
+    return reply.status(500).send({ error: 'Failed to log in' });
   }
 }

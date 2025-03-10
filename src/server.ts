@@ -3,6 +3,7 @@ import fastifyCors from '@fastify/cors';
 import dotenv from 'dotenv';
 import userRoutes from './routes/userRoutes';
 import { initializeFirebase } from './config/firebaseConfig';
+import cookie from '@fastify/cookie';
 
 // Load environment variables
 dotenv.config();
@@ -15,6 +16,11 @@ const fastify = Fastify({ logger: true });
 
 // Register CORS
 fastify.register(fastifyCors);
+
+fastify.register(cookie, {
+  secret: process.env.COOKIE_SECRET, // Use an env variable for security
+  hook: 'onRequest',
+});
 
 // Register Routes
 fastify.register(userRoutes, { prefix: '/users' });
